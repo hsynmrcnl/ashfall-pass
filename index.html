@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Ashfall</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#12131f">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Ashfall">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="apple-touch-icon" href="ikon-180.png">
+<link rel="icon" type="image/png" sizes="192x192" href="ikon-192.png">
+<style data-pwa>html,body{background:#12131f}</style>
+<style>
+  :root{--bg:#12131f; --panel:#1a1c2c; --kenar:#444a72; --ink:#ece7f5; --dim:#9aa0c3; --altin:#eea43b; --altin-a:#ffd479; --kizil:#ff5b72}
+  *{box-sizing:border-box}
+  html,body{height:100%; margin:0; background:var(--bg); color:var(--ink); font:16px/1.4 ui-monospace,Menlo,Consolas,monospace;
+    overscroll-behavior:none; -webkit-text-size-adjust:100%}
+  body{display:flex; align-items:center; justify-content:center;
+    padding:max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left))}
+  form{width:min(340px, 100%); display:flex; flex-direction:column; gap:12px; padding:20px; background:var(--panel);
+    box-shadow:2px 0 0 var(--kenar), -2px 0 0 var(--kenar), 0 2px 0 var(--kenar), 0 -2px 0 var(--kenar)}
+  img{width:96px; height:96px; align-self:center; image-rendering:pixelated}
+  h1{margin:0; text-align:center; font-size:20px; letter-spacing:2px; color:var(--altin-a); text-transform:uppercase}
+  label{font-size:14px; color:var(--dim)}
+  input{font:inherit; font-size:18px; color:var(--ink); background:var(--bg); border:0; border-radius:0; padding:10px 12px; min-height:44px;
+    box-shadow:inset 0 0 0 2px var(--kenar)}
+  input:focus{outline:2px solid var(--altin); outline-offset:2px}
+  button{font:inherit; font-size:16px; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:#12131f; background:var(--altin);
+    border:0; border-radius:0; min-height:44px; cursor:pointer; box-shadow:inset 0 -4px 0 #b06a1c}
+  button:disabled{opacity:.6}
+  #msg{min-height:20px; margin:0; font-size:14px; color:var(--dim); text-align:center}
+  #msg.hata{color:var(--kizil)}
+  .gizli{position:absolute; width:1px; height:1px; opacity:0; pointer-events:none}
+</style>
+</head>
+<body>
+<form id="f" autocomplete="on" hidden>
+  <img src="ikon-192.png" alt="">
+  <h1>Ashfall</h1>
+  <input class="gizli" type="text" name="username" autocomplete="username" value="ashfall" tabindex="-1" aria-hidden="true">
+  <label for="p">Password</label>
+  <input id="p" name="password" type="password" autocomplete="current-password" autocapitalize="off" autocorrect="off" spellcheck="false" required>
+  <button id="b" type="submit">Open</button>
+  <p id="msg" role="status"></p>
+</form>
+<p id="yuk" style="margin:0;color:#9aa0c3">Loading…</p>
+<script>
+(function(){
+  var K="ashfall_pwa_anahtar", f=document.getElementById("f"), p=document.getElementById("p"), b=document.getElementById("b"),
+      msg=document.getElementById("msg"), yuk=document.getElementById("yuk");
+  if("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(function(){});
+  function b64d(s){ var t=atob(s), u=new Uint8Array(t.length); for(var i=0;i<t.length;i++) u[i]=t.charCodeAt(i); return u; }
+  function b64e(u){ var s=""; for(var i=0;i<u.length;i++) s+=String.fromCharCode(u[i]); return btoa(s); }
+  function temiz(s){ return String(s||"").normalize("NFC").toLowerCase().replace(/[^\p{L}\p{N}]/gu, ""); }
+  function goster(t, hata){ msg.textContent=t||""; msg.className=hata?"hata":""; }
+  function formAc(t, hata){ yuk.hidden=true; f.hidden=false; goster(t, hata); b.disabled=false; try{ p.focus(); }catch(e){} }
+  var veri=Promise.all([fetch("kasa.json",{cache:"no-cache"}).then(function(r){ return r.json(); }),
+                        fetch("oyun.bin",{cache:"no-cache"}).then(function(r){ return r.arrayBuffer(); })]);
+  function coz(ham){ return veri.then(function(v){
+    return crypto.subtle.importKey("raw", ham, "AES-GCM", false, ["decrypt"]).then(function(k){
+      return crypto.subtle.decrypt({name:"AES-GCM", iv:b64d(v[0].iv)}, k, v[1]); }).then(function(d){ return new TextDecoder().decode(d); }); }); }
+  function ac(html){ document.open(); document.write(html); document.close(); }
+  function turet(sifre){ return veri.then(function(v){ var kasa=v[0];
+    return crypto.subtle.importKey("raw", new TextEncoder().encode(temiz(sifre)), "PBKDF2", false, ["deriveBits"]).then(function(bk){
+      return crypto.subtle.deriveBits({name:"PBKDF2", hash:"SHA-256", salt:b64d(kasa.tuz), iterations:kasa.tekrar}, bk, 256); })
+      .then(function(bits){ return {tuz:kasa.tuz, ham:new Uint8Array(bits)}; }); }); }
+  f.addEventListener("submit", function(e){ e.preventDefault(); b.disabled=true; goster("Opening…");
+    turet(p.value).then(function(a){ return coz(a.ham).then(function(html){
+      try{ localStorage.setItem(K, JSON.stringify({tuz:a.tuz, anahtar:b64e(a.ham)})); }catch(x){}
+      ac(html); }); })
+    .catch(function(){ b.disabled=false; goster("Wrong password.", true); p.select(); }); });
+  if(!(window.crypto && crypto.subtle)){ formAc("This browser cannot open it (no secure connection).", true); return; }
+  veri.then(function(v){ var s=null; try{ s=JSON.parse(localStorage.getItem(K)||"null"); }catch(x){}
+    if(!s || s.tuz!==v[0].tuz){ formAc(s ? "The password has changed. Enter the new one." : ""); return; }
+    return coz(b64d(s.anahtar)).then(ac, function(){ formAc("Enter the password again.", false); }); })
+  .catch(function(){ formAc("No connection and nothing saved yet. Open it once online.", true); });
+})();
+</script>
+</body>
+</html>
