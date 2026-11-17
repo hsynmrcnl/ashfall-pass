@@ -1,5 +1,5 @@
-/* Hymn of Ash servis işçisi — sürüm 24aa634a1668 (pwa-kur.js üretir; elle düzenleme) */
-const ONBELLEK = "ashfall-24aa634a1668";
+/* Hymn of Ash servis işçisi — sürüm fc7fa1eb4447 (pwa-kur.js üretir; elle düzenleme) */
+const ONBELLEK = "ashfall-fc7fa1eb4447";
 const AG_ONCE = ["./", "index.html", "kasa.json", "oyun.bin"];
 const DOSYALAR = AG_ONCE.concat(["manifest.webmanifest", "ikon-180.png", "ikon-192.png", "ikon-512.png", "ikon-maskable-512.png"]);
 self.addEventListener("install", e => { e.waitUntil(caches.open(ONBELLEK).then(c => c.addAll(DOSYALAR)).then(() => self.skipWaiting())); });
